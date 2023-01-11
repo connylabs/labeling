@@ -1,0 +1,64 @@
+[tool.poetry]
+name = "labeling"
+version = "0.0.0" # placeholder for dynamic versioning
+description = ""
+authors = ["Conny Tech <tech@conny.legal>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pandas = "^1.4.0"
+click = "^8.0.3"
+datasets = "^2.4.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.2.0"
+black = "^22.1.0"
+isort = "^5.10.1"
+flake8 = "^5.0.4"
+pytest-asyncio = "^0.20.2"
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+
+[tool.black]
+line-length = 88
+skip-string-normalization = true
+target-version = ['py39']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+skip_glob = ["*/setup.py",]
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.poetry.scripts]
+labeling = "labeling.cli:cli"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "semver"
+# Make the leading 'v' optional.
+pattern  = "^(?P<base>\\d+\\.\\d+\\.\\d+)(-?((?P<stage>[a-zA-Z]+)\\.?(?P<revision>\\d+)?))?"

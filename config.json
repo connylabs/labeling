@@ -1,0 +1,6 @@
+{
+  "labels":["cat", "dog"],
+  "data_dir": "/home/dani/dev/conny-dev/labeling/data",
+  "sampling_strategy": "entropy",
+  "model_url": "localhost:8080/infer_api_v1_infer_post"
+}

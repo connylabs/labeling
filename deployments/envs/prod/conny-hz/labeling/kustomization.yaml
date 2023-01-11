@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: conny-prod-hz
+
+resources:
+- ../../../../base/labeling
+
+images:
+- name: img.conny.dev/conny/ml/labeling
+  newTag: 
+replicas:
+- count: 2
+  name: labeling
