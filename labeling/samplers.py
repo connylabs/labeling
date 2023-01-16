@@ -5,15 +5,12 @@ import random
 import numpy as np
 from datasets import Dataset
 
-import torch
+from .model import get_model, train_model
 
-
-MODEL = None
 
 def set_random_seed(seed=None):
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
 
 
 class BaseSampler(abc.ABC):
@@ -45,7 +42,7 @@ class RandomSampler(Sampler):
 
 
 class ActiveLearningSampler(Sampler):
-    def __init__(self, dataset=None, model=MODEL, batch_size=10):
+    def __init__(self, dataset=None, model=None, batch_size=10):
         super(ActiveLearningSampler, self).__init__(dataset)
         self.model = model
         self.fit(dataset)
@@ -66,7 +63,11 @@ class ActiveLearningSampler(Sampler):
         return dataset.select(idxs), entropies[idxs]
 
     def fit(self, dataset):
-        self.model.fit(dataset)
+        n_classes = len(set([sample["label"] for sample in dataset]))
+        train, val = train_test_split(dataset)
+        dataloaders = make_dataloaders(train, val=val)
+        model, criterion, optimizer, scheduler = get_model(n_classes)
+        self.model = train_model(model, dataloaders, criterion, optimizer, scheduler)
         return self
 
     def predict(dataset):

@@ -8,7 +8,6 @@ from datasets import Dataset, load_dataset, Image, concatenate_datasets
 
 from .samplers import Sampler
 
-
 def make_thumbnail(sample, dim=500, name="thumbnail"):
     sample[name] = sample["image"].copy()
     sample[name].thumbnail((dim, dim))
@@ -41,6 +40,7 @@ def clean_path(sample, dir_name=None):
 def get_index(sample, idx):
     sample["index"] = idx
     return sample
+
 
 def is_unlabeled(sample):
     return sample["label"] is None
@@ -112,7 +112,7 @@ class Annotator:
         self.labeled_data.append(current_sample)
 
         self.to_jsonl()
-        self.sampler = self.sampler.update(self.labeled_dataset)
+        self.sampler = self.sampler.update(self.labeled_data)
         return self
 
     def to_jsonl(self):

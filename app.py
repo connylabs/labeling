@@ -2,16 +2,16 @@ import os
 from pathlib import Path
 import base64
 
+import click
 import streamlit as st
-from datasets import load_dataset, Image
-
 from st_click_detector import click_detector
-from streamlit_image_select import image_select
+from datasets import load_dataset, Image
 
 from labeling.annotator import Annotator
 from labeling.samplers import RandomSampler, ActiveLearningSampler
 
-
+@click.argument("img-dir", type=click.Path())
+@click.argument("labels", type=click.Path())
 def run(img_dir, labels):
     img_dir = Path(img_dir)
 
@@ -39,7 +39,6 @@ def run(img_dir, labels):
     def handle_history_click(index):
         idx = n_labeled - int(index) - 1
         st.session_state["annotator"].redo(idx)
-        st.info(f'history: {index}')
         st.experimental_rerun()
 
     if st.session_state["annotator"].labeled_data:
@@ -103,4 +102,6 @@ def run(img_dir, labels):
 
 if __name__ == "__main__":
     custom_labels = ["dog", "cat", "SKIP"]
-    run(Path(__file__).parent.joinpath("data"), custom_labels)
+    img_dir = Path(__file__).parent.joinpath("data")
+    # img_dir = "/"
+    run(img_dir, custom_labels)
