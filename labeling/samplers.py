@@ -3,9 +3,9 @@ from pathlib import Path
 import random
 
 import numpy as np
-from datasets import Dataset
+from datasets import Dataset, DatasetDict
 
-from .model import get_model, train_model
+from labeling.hf_model import Model, get_label_maps
 
 
 def set_random_seed(seed=None):
@@ -42,15 +42,27 @@ class RandomSampler(Sampler):
 
 
 class ActiveLearningSampler(Sampler):
-    def __init__(self, dataset=None, model=None, batch_size=10):
-        super(ActiveLearningSampler, self).__init__(dataset)
-        self.model = model
-        self.fit(dataset)
+    def __init__(
+        self,
+        dataset=None,
+        labels=None,
+        batch_size=10
+        ):
+        assert (dataset is not None) or (labels is not None)
+
         self.batch_size = batch_size
+        self.labels = labels or dataset.features["label"].names
+        self.dataset = dataset
+
+        self.model = Model(self.labels, batch_size=batch_size)
         self.updates = 0
 
+        if dataset is not None:
+            self.fit(dataset)
+
     def __call__(self, dataset):
-        scores = self.predict(dataset)
+        preds = self.predict(dataset)
+        scores = [pred["score"] for pred in preds]
         scores = np.array(scores)
         if scores.ndim == 1:
             scores = scores[:, None]
@@ -63,19 +75,22 @@ class ActiveLearningSampler(Sampler):
         return dataset.select(idxs), entropies[idxs]
 
     def fit(self, dataset):
-        n_classes = len(set([sample["label"] for sample in dataset]))
-        train, val = train_test_split(dataset)
-        dataloaders = make_dataloaders(train, val=val)
-        model, criterion, optimizer, scheduler = get_model(n_classes)
-        self.model = train_model(model, dataloaders, criterion, optimizer, scheduler)
+        if not isinstance(dataset, (Dataset, DatasetDict)):
+            pass
+        self.model.fit(dataset)
         return self
 
-    def predict(dataset):
-        scores = self.model.predict(dataset)
-        return scores
+    def predict(self, dataset):
+        return self.model.predict(dataset)
 
     def update(self, dataset):
         self.updates += 1
         if (self.updates % self.batch_size) == 0:
             return self.fit(dataset)
         return self
+
+
+SAMPLERS = {
+    "active-learning": ActiveLearningSampler,
+    "random": RandomSampler
+}

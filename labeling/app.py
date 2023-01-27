@@ -5,23 +5,50 @@ import base64
 import click
 import streamlit as st
 from st_click_detector import click_detector
-from datasets import load_dataset, Image
+from datasets import load_dataset, Image, Features, ClassLabel
 
 from labeling.annotator import Annotator
-from labeling.samplers import RandomSampler, ActiveLearningSampler
+from labeling.samplers import SAMPLERS
+from labeling.html import make_history_divs
 
-@click.argument("img-dir", type=click.Path())
-@click.argument("labels", type=click.Path())
-def run(img_dir, labels):
+
+SKIP_LABEL = "SKIP"
+
+
+# @click.command()
+@click.option("--sampler-name", "--sampler", type=str, default="active-learning")
+@click.argument("--img-dir", type=click.Path())
+@click.argument("--labels", type=click.Path())
+def run(sampler_name, img_dir, labels):
     img_dir = Path(img_dir)
 
+    print(img_dir)
     def refresh():
+
+        features = Features(
+            {
+                "image": Image(),#Image(decode=False),
+                "label": ClassLabel(
+                    num_classes=len(labels),
+                    names=labels
+                )
+            }
+        )
+
         dataset = load_dataset(
             "imagefolder",
             data_dir=img_dir,
-            split="train"
+            split="train",
+            features=features
         )
-        st.session_state["annotator"] = Annotator(dataset, RandomSampler(), img_dir/"metadata.jsonl")
+
+        Sampler = SAMPLERS[sampler_name]
+        if sampler_name == "active-learning":
+            sampler = Sampler(dataset, labels=labels)
+        else:
+            sampler = Sampler()
+
+        st.session_state["annotator"] = Annotator(dataset, sampler, img_dir/"metadata.jsonl")
 
     if "annotator" not in st.session_state:
         refresh()
@@ -41,25 +68,9 @@ def run(img_dir, labels):
         st.session_state["annotator"].redo(idx)
         st.experimental_rerun()
 
+    # render history
     if st.session_state["annotator"].labeled_data:
-
-        def image_bytes_to_md(bytes):
-            return f"![](data:image/png;base64,{str(base64.b64encode(bytes))[2:-1]}"
-
-        def image_bytes_to_html(bytes, alt=""):
-            return f'<img src="data:image/png;base64, {str(base64.b64encode(bytes))[2:-1]}" alt="{alt}"/>'
-
-        def sample_div(text, data, id=None):
-            id = id if id is not None else text
-            return f"<p><a href='#' id='{id}'>{data}{text}</a></p>"
-
-        history = "\n".join([
-            sample_div(
-                text=sample["label"],
-                data=image_bytes_to_html(sample["tiny"]["bytes"]),
-                id=i,
-            ) for i, sample in enumerate(st.session_state["annotator"].labeled_data[::-1])])
-
+        history = make_history_divs(st.session_state["annotator"].labeled_data[::-1])
         with st.sidebar:
             index = click_detector(history)
             if index != "":
@@ -101,7 +112,7 @@ def run(img_dir, labels):
         st.success("Done!")
 
 if __name__ == "__main__":
-    custom_labels = ["dog", "cat", "SKIP"]
-    img_dir = Path(__file__).parent.joinpath("data")
-    # img_dir = "/"
-    run(img_dir, custom_labels)
+    sampler_name = "active-learning"
+    custom_labels = ["dog", "cat", SKIP_LABEL]
+    img_dir = "/home/dani/dev/conny-dev/labeling/data"
+    run(sampler_name, img_dir, custom_labels)

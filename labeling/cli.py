@@ -3,20 +3,19 @@ import os
 import click
 import logging
 
-from cookiecutter.package_name import models
-from cookiecutter.package_name import data
+from labeling import app
+
+import sys
+from streamlit.web import cli as stcli
 
 
-@click.group()
+@click.command()
 def cli():
     """
     labeling
     """
-    pass
-
-
-cli.command("train")(models.train.run)
-cli.command("data")(data.build_dataset.run)
+    sys.argv = ["streamlit", "run", f"{app.__file__}"]
+    sys.exit(stcli.main())
 
 
 if __name__ == "__main__":

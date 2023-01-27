@@ -6,7 +6,8 @@ from pathlib import Path
 import numpy as np
 from datasets import Dataset, load_dataset, Image, concatenate_datasets
 
-from .samplers import Sampler
+from labeling.samplers import Sampler
+
 
 def make_thumbnail(sample, dim=500, name="thumbnail"):
     sample[name] = sample["image"].copy()

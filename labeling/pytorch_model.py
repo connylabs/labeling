@@ -92,7 +92,7 @@ def get_model(n_classes, device=None):
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=25, device=None):
     device = device or torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    dataset_sizes = {split: len(dataloaders[split]) for split in dataloaders}
+    dataset_sizes = {split: len(dataloaders[split].dataset) for split in dataloaders}
 
     since = time.time()
 
@@ -104,7 +104,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
         print('-' * 10)
 
         # Each epoch has a training and validation phase
-        for phase in ['train', 'val']:
+        for phase in ['train', 'validation']:
             if phase == 'train':
                 model.train()  # Set model to training mode
             else:
@@ -146,7 +146,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, num_epochs=
             print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
             # deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
+            if phase == 'validation' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
