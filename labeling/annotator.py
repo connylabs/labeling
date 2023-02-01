@@ -34,8 +34,7 @@ class Annotator:
 
         if len(self.trainable_data) > 0:
             self.sampler.fit(self.trainable_data)
-
-        # self.unlabeled_data = self.sort(self.unlabeled_data)
+            self.unlabeled_data = self.sort(self.unlabeled_data)
 
     def __len__(self):
         return len(self.labeled_data) + len(self.unlabeled_data)
@@ -53,23 +52,23 @@ class Annotator:
         self.unlabeled_data.append(current_sample)
         return self
 
-    def update(self, label):
+    def set_label(self, label):
         current_sample = self.unlabeled_data.pop()
         current_sample["label"] = label
         self.labeled_data.append(current_sample)
 
         self.to_jsonl()
-        self.sampler = self.sampler.update(map(is_not_skipped, self.labeled_data))
+        self.sampler = self.sampler.step(self.trainable_data)
         return self
 
-    def sort(self, dataset):
+    def sort(self, data: list[typing.Dict[str, list[str]]]):
         # use sampler to sort
-        self.unlabeled_data, scores = self.sampler(self.unlabeled_data)
+        data, scores = self.sampler(data)
 
-        for sample, score in zip(self.unlabeled_data, scores):
+        for sample, score in zip(data, scores):
             sample["score"] = score
 
-        return self.unlabeled_data
+        return data
 
     def to_jsonl(self):
         dir_name = self.output_path.parent

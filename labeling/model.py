@@ -189,24 +189,27 @@ class Model:
 
         return self
 
-    def predict(self, dataset):
+    def predict_proba(self, dataset):
         # allow predicting from un-trained model
         if self.model is None:
             self.model = self._init_model()
-            self.trainer = Trainer(
-                self.model,
-                self.training_args,
-                tokenizer=self.feature_extractor,
-                data_collator=collate_pred,
-            )
+
+        trainer = Trainer(
+            self.model,
+            self.training_args,
+            tokenizer=self.feature_extractor,
+            data_collator=collate_pred,
+        )
 
         # data validation
         dataset.set_transform(make_preprocessor(self.transforms["validation"]))
 
-        preds = self.trainer.predict(dataset)
+        preds = trainer.predict(dataset)
         logits = preds.predictions
-        probs = scipy.special.softmax(logits, axis=-1).tolist()
+        return scipy.special.softmax(logits, axis=-1)
 
+    def predict(self, dataset):
+        probs = self.predict_proba(dataset).tolist()
         # sort by labels by predicted probs
         out = []
         for probs_ in probs:

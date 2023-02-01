@@ -1,7 +1,10 @@
 import typing
 import random
 from pathlib import Path
+import contextlib
 
+import joblib
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 
@@ -35,6 +38,11 @@ def to_dataset(
     return Dataset.from_list(dataset, features=features)
 
 
+def _dataset_to_list(dataset: Dataset) -> list[typing.Dict[str, list[str]]]:
+    dataset = dataset.to_pandas().replace(to_replace=np.nan, value=None)
+    return dataset.to_dict(orient="records")
+
+
 def load_dataset_from_disk(
     dir_name: str,
     metadata_path: str,
@@ -58,8 +66,7 @@ def load_dataset_from_disk(
         features=features
     )
 
-    dataset = dataset.to_pandas().replace(to_replace=np.nan, value=None)
-    dataset = dataset.to_dict(orient="records")
+    dataset = _dataset_to_list(dataset)
 
     # get the metadata
     metadata_path = Path(metadata_path)
@@ -102,7 +109,7 @@ def transform(sample):
     pass
 
 
-def prepare_dump(sample, dir_name=None):
+def prepare_dump(sample, dir_name=None, realtive=False):
     sample_ = {}
     sample_["label"] = sample["label"]
 
@@ -110,7 +117,7 @@ def prepare_dump(sample, dir_name=None):
     sample_["file_name"] = sample["image"]["path"]
 
     # keep only the filename relative to the directory
-    if dir_name is not None:
+    if relative and (dir_name is not None):
         dir_name = Path(dir_name).parts[-1]
         sample_["file_name"] = Path(sample_["file_name"].split(dir_name)[-1]).name
 
@@ -124,3 +131,22 @@ def is_labeled(sample):
 
 def is_not_skipped(sample):
     return sample["label"] is not SKIP_LABEL
+
+
+@contextlib.contextmanager
+def tqdm_joblib(tqdm_object):
+    """Context manager to patch joblib to report into tqdm progress bar given as argument
+    copied from https://stackoverflow.com/a/58936697/5257074
+    """
+    class TqdmBatchCompletionCallback(joblib.parallel.BatchCompletionCallBack):
+        def __call__(self, *args, **kwargs):
+            tqdm_object.update(n=self.batch_size)
+            return super().__call__(*args, **kwargs)
+
+    old_batch_callback = joblib.parallel.BatchCompletionCallBack
+    joblib.parallel.BatchCompletionCallBack = TqdmBatchCompletionCallback
+    try:
+        yield tqdm_object
+    finally:
+        joblib.parallel.BatchCompletionCallBack = old_batch_callback
+        tqdm_object.close()

@@ -89,7 +89,7 @@ def run(sampler_name, batch_size, limit, img_dir, metadata_path, labels):
 
                 buttons.append(col.button(
                     str(label),
-                    on_click=st.session_state["annotator"].update,
+                    on_click=st.session_state["annotator"].set_label,
                     args=(label,),
                     type=type
                 ))

@@ -3,10 +3,11 @@ from pathlib import Path
 from copy import copy
 
 import numpy as np
+import scipy
 from datasets import Dataset, DatasetDict, Features, ClassLabel, Image
 
 from labeling.model import Model, get_label_maps
-from labeling.utils import SKIP_LABEL, to_dataset
+from labeling.utils import SKIP_LABEL, to_dataset, _dataset_to_list
 
 
 class BaseSampler(abc.ABC):
@@ -15,13 +16,13 @@ class BaseSampler(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def update(self, dataset: Dataset):
+    def step(self, dataset: Dataset):
         return self
 
 
 class Sampler(BaseSampler):
     @abc.abstractmethod
-    def update(self, dataset: Dataset) -> BaseSampler:
+    def step(self, dataset: Dataset) -> BaseSampler:
         return self
 
 
@@ -33,7 +34,7 @@ class RandomSampler(Sampler):
     def __call__(self, dataset):
         return dataset.shuffle(seed=self.random_seed), np.zeros(len(dataset))
 
-    def update(self, dataset: Dataset) -> BaseSampler:
+    def step(self, dataset: Dataset) -> BaseSampler:
         return self
 
 
@@ -45,28 +46,30 @@ class ActiveLearningSampler(Sampler):
         self.updates = 0
 
     def __call__(self, dataset):
-        return self.predict(dataset)
+        return self.sort(dataset)
 
     @property
     def is_fitted(self):
         return hasattr(self, "model")
 
-    def predict(self, dataset):
+    def sort(self, dataset):
         if not self.is_fitted:
             raise ValueError("Sampler is not yet fitted. Run `sampler.fit(...)` with your dataset first.")
 
-        preds = self.model.predict(dataset)
-        scores = [pred["score"] for pred in preds]
-        scores = np.array(scores)
+        if not isinstance(dataset, (Dataset, DatasetDict)):
+            dataset = to_dataset(dataset, labels=self.labels)
+
+        scores = self.model.predict_proba(dataset)
         if scores.ndim == 1:
             scores = scores[:, None]
             scores = np.hstack([scores, 1-scores])
+
         if scores.ndim > 2:
             raise ValueError(f"Expected prediction scores to have dim 2, but found {scores}")
 
-        entropies = np.mean(-np.log(scores) * scores, axis=-1)
+        entropies = scipy.stats.entropy(scores, axis=-1)
         idxs = np.argsort(entropies, axis=-1)[::-1] # get idxs of samples with max entrpoy(
-        return dataset.select(idxs), entropies[idxs]
+        return _dataset_to_list(dataset.select(idxs)), entropies[idxs]
 
     def fit(self, dataset):
         if not isinstance(dataset, (Dataset, DatasetDict)):
@@ -77,7 +80,7 @@ class ActiveLearningSampler(Sampler):
         self.model.fit(dataset)
         return self
 
-    def update(self, dataset):
+    def step(self, dataset):
         self.updates += 1
         if (self.updates % self.batch_size) == 0:
             return self.fit(dataset)
