@@ -1,16 +1,12 @@
 import abc
 from pathlib import Path
-import random
+from copy import copy
 
 import numpy as np
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, Features, ClassLabel, Image
 
-from labeling.hf_model import Model, get_label_maps
-
-
-def set_random_seed(seed=None):
-    random.seed(seed)
-    np.random.seed(seed)
+from labeling.model import Model, get_label_maps
+from labeling.utils import SKIP_LABEL, to_dataset
 
 
 class BaseSampler(abc.ABC):
@@ -42,26 +38,24 @@ class RandomSampler(Sampler):
 
 
 class ActiveLearningSampler(Sampler):
-    def __init__(
-        self,
-        dataset=None,
-        labels=None,
-        batch_size=10
-        ):
-        assert (dataset is not None) or (labels is not None)
-
+    def __init__(self, labels, batch_size=10):
+        self.labels = copy(labels)
+        self.labels.remove(SKIP_LABEL)
         self.batch_size = batch_size
-        self.labels = labels or dataset.features["label"].names
-        self.dataset = dataset
-
-        self.model = Model(self.labels, batch_size=batch_size)
         self.updates = 0
 
-        if dataset is not None:
-            self.fit(dataset)
-
     def __call__(self, dataset):
-        preds = self.predict(dataset)
+        return self.predict(dataset)
+
+    @property
+    def is_fitted(self):
+        return hasattr(self, "model")
+
+    def predict(self, dataset):
+        if not self.is_fitted:
+            raise ValueError("Sampler is not yet fitted. Run `sampler.fit(...)` with your dataset first.")
+
+        preds = self.model.predict(dataset)
         scores = [pred["score"] for pred in preds]
         scores = np.array(scores)
         if scores.ndim == 1:
@@ -76,12 +70,12 @@ class ActiveLearningSampler(Sampler):
 
     def fit(self, dataset):
         if not isinstance(dataset, (Dataset, DatasetDict)):
-            pass
+            dataset = to_dataset(dataset, labels=self.labels)
+
+        self.model = Model(self.labels, batch_size=self.batch_size)
+
         self.model.fit(dataset)
         return self
-
-    def predict(self, dataset):
-        return self.model.predict(dataset)
 
     def update(self, dataset):
         self.updates += 1

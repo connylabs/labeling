@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 
 from datasets import load_metric
 from transformers import (
@@ -20,7 +21,6 @@ from torchvision.transforms import (
 )
 
 from PIL.Image import Image
-
 import click
 
 """
@@ -78,10 +78,15 @@ def get_label_maps(dataset=None, labels=None):
     return label2id, id2label
 
 
-def collate_fn(examples):
+def collate_train_eval(examples):
     pixel_values = torch.stack([example["pixel_values"] for example in examples])
     labels = torch.tensor([example["label"] for example in examples])
     return {"pixel_values": pixel_values, "labels": labels}
+
+
+def collate_pred(examples):
+    pixel_values = torch.stack([example["pixel_values"] for example in examples])
+    return {"pixel_values": pixel_values}
 
 
 class Model:
@@ -170,41 +175,37 @@ class Model:
         train_ds.set_transform(make_preprocessor(self.transforms["train"]))
         val_ds.set_transform(make_preprocessor(self.transforms["validation"]))
 
-        trainer = Trainer(
+        self.trainer = Trainer(
             self.model,
             self.training_args,
             train_dataset=train_ds,
             eval_dataset=val_ds,
             tokenizer=self.feature_extractor,
             compute_metrics=self.compute_f1_metric if self.metric_name.lower() == "f1" else self.compute_metrics,
-            data_collator=collate_fn,
+            data_collator=collate_train_eval,
         )
 
-        train_results = trainer.train()
+        train_results = self.trainer.train()
 
         return self
 
-    def predict(self, X):
+    def predict(self, dataset):
         # allow predicting from un-trained model
         if self.model is None:
             self.model = self._init_model()
+            self.trainer = Trainer(
+                self.model,
+                self.training_args,
+                tokenizer=self.feature_extractor,
+                data_collator=collate_pred,
+            )
 
         # data validation
-        if isinstance(X, Image):
-            X = [Image]
-        assert all([isinstance(x, Image) for x in X])
+        dataset.set_transform(make_preprocessor(self.transforms["validation"]))
 
-        # preprocessing
-        encodings = self.feature_extractor(
-            [i.convert("RGB") for i in X],
-            return_tensors="pt"
-        )
-
-        # forward pass
-        with torch.no_grad():
-            outputs = self.model(**encodings)
-            logits = outputs.logits
-            probs = torch.functional.F.softmax(logits).numpy().tolist()
+        preds = self.trainer.predict(dataset)
+        logits = preds.predictions
+        probs = scipy.special.softmax(logits, axis=-1).tolist()
 
         # sort by labels by predicted probs
         out = []
