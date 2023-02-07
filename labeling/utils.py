@@ -2,11 +2,14 @@ import typing
 import random
 from pathlib import Path
 import contextlib
+from functools import cache, lru_cache
 
 import joblib
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
+from PIL import Image
+from PIL.Image import open as open_image
 
 from datasets import (
     Dataset,
@@ -14,7 +17,8 @@ from datasets import (
     Image,
     concatenate_datasets,
     Features,
-    ClassLabel
+    ClassLabel,
+    Value
 )
 
 SKIP_LABEL = "SKIP"
@@ -32,7 +36,8 @@ def to_dataset(
     features = Features(
         {
             "image": Image(),
-            "label": ClassLabel(num_classes=len(labels), names=labels)
+            "label": ClassLabel(num_classes=len(labels), names=labels),
+            "score": Value("float"),
         }
     )
     return Dataset.from_list(dataset, features=features)
@@ -55,6 +60,7 @@ def load_dataset_from_disk(
         {
             "image": Image(decode=False),
             "label": cl,
+            "score": Value("float"),
         }
     )
 
@@ -85,31 +91,33 @@ def load_dataset_from_disk(
         metadata = metadata.dropna().replace(to_replace=np.nan, value=None)
         metadata = metadata.set_index("file_name")["label"]
 
-        metadata = metadata.apply(cl.str2int)
+        # metadata = metadata.apply(cl.str2int)
         metadata = metadata.to_dict()
 
         # add the metadata for labeled samples
         for sample in dataset:
             sample["label"] = metadata.get(sample["image"]["path"], None)
 
+            if isinstance(sample["label"], (float, int)):
+                sample["label"] = cl.int2str(sample["label"])
+
     return dataset
 
 
-def make_thumbnail(sample, dim=500, name="thumbnail"):
-    sample[name] = sample["image"].copy
-    sample[name].thumbnail((dim, dim))
-    return sample
+def load_image(image_path, size=500, name="thumbnail"):
+    image = open_image(image_path)
+
+    if size is not None:
+        image.thumbnail((size, size))
+
+    return image
+
+@cache
+def make_tiny(image_path, size=70, name="tiny"):
+    return load_image(image_path, size=size, name=name)
 
 
-def make_tiny(sample, dim=70, name="tiny"):
-    return make_thumbnail(sample, dim=dim, name=name)
-
-
-def transform(sample):
-    pass
-
-
-def prepare_dump(sample, dir_name=None, realtive=False):
+def prepare_dump(sample, dir_name=None, relative=False):
     sample_ = {}
     sample_["label"] = sample["label"]
 

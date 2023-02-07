@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 from pathlib import Path
 from copy import copy
@@ -6,7 +7,7 @@ import numpy as np
 import scipy
 from datasets import Dataset, DatasetDict, Features, ClassLabel, Image
 
-from labeling.model import Model, get_label_maps
+from labeling.model import Model, get_label_maps, MODEL
 from labeling.utils import SKIP_LABEL, to_dataset, _dataset_to_list
 
 
@@ -16,17 +17,11 @@ class BaseSampler(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def step(self, dataset: Dataset):
-        return self
+    def step(self, dataset: Dataset) -> tuple(BaseSampler, bool):
+        return self, False
 
 
-class Sampler(BaseSampler):
-    @abc.abstractmethod
-    def step(self, dataset: Dataset) -> BaseSampler:
-        return self
-
-
-class RandomSampler(Sampler):
+class RandomSampler(BaseSampler):
     def __init__(self, random_seed=42):
         self.random_seed = random_seed
         set_random_seed(random_seed)
@@ -34,16 +29,17 @@ class RandomSampler(Sampler):
     def __call__(self, dataset):
         return dataset.shuffle(seed=self.random_seed), np.zeros(len(dataset))
 
-    def step(self, dataset: Dataset) -> BaseSampler:
-        return self
+    def step(self, dataset: Dataset) -> tuple(BaseSampler, bool):
+        return self, False
 
 
-class ActiveLearningSampler(Sampler):
-    def __init__(self, labels, batch_size=10):
+class ActiveLearningSampler(BaseSampler):
+    def __init__(self, labels, retrain_steps=10, model_name=MODEL):
         self.labels = copy(labels)
         self.labels.remove(SKIP_LABEL)
-        self.batch_size = batch_size
+        self.retrain_steps = retrain_steps
         self.updates = 0
+        self.model_name = model_name or MODEL
 
     def __call__(self, dataset):
         return self.sort(dataset)
@@ -68,23 +64,24 @@ class ActiveLearningSampler(Sampler):
             raise ValueError(f"Expected prediction scores to have dim 2, but found {scores}")
 
         entropies = scipy.stats.entropy(scores, axis=-1)
-        idxs = np.argsort(entropies, axis=-1)[::-1] # get idxs of samples with max entrpoy(
+        idxs = np.argsort(entropies, axis=-1) # highest entropies last because we will pop from list end
         return _dataset_to_list(dataset.select(idxs)), entropies[idxs]
 
     def fit(self, dataset):
         if not isinstance(dataset, (Dataset, DatasetDict)):
             dataset = to_dataset(dataset, labels=self.labels)
 
-        self.model = Model(self.labels, batch_size=self.batch_size)
+        self.model = Model(self.labels, model_checkpoint=self.model_name)
 
         self.model.fit(dataset)
         return self
 
     def step(self, dataset):
         self.updates += 1
-        if (self.updates % self.batch_size) == 0:
-            return self.fit(dataset)
-        return self
+        if (self.updates % self.retrain_steps) == 0:
+            self.fit(dataset)
+            return self, True
+        return self, False
 
 
 SAMPLERS = {

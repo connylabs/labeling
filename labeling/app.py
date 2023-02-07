@@ -8,37 +8,57 @@ from st_click_detector import click_detector
 from datasets import load_dataset, Image, Features, ClassLabel
 
 from labeling.annotator import Annotator
-from labeling.utils import SKIP_LABEL, load_dataset_from_disk
+from labeling.utils import SKIP_LABEL, load_dataset_from_disk, make_tiny, load_image
 from labeling.samplers import SAMPLERS
 from labeling.html import make_history_divs
 
 
+_DEFAULT_SAMPLER_NAME = "active-learning"
+_DEFAULT_MODEL_NAME = None
+_DEFAULT_LIMIT = None
+_DEFAULT_RESIZE = None
+_DEFAULT_RETRAIN_STEPS = 50
+
 # @click.command()
-@click.option("--sampler-name", "--sampler", type=str, default="active-learning")
-@click.option("--batch-size", type=int, default=10)
-@click.option("--limit", type=int, default=None)
 @click.argument("--img-dir", type=click.Path())
 @click.argument("--metadata-path", type=click.Path())
 @click.argument("--labels", type=click.Path())
-def run(sampler_name, batch_size, limit, img_dir, metadata_path, labels):
+@click.option("--sampler-name", "--sampler", type=str, default=_DEFAULT_SAMPLER_NAME)
+@click.option("--model-name", "--model", type=str, default=_DEFAULT_MODEL_NAME)
+@click.option("--retrain-steps", "--retrain", type=int, default=_DEFAULT_RETRAIN_STEPS)
+@click.option("--limit", type=int, default=_DEFAULT_LIMIT)
+@click.option("--resize", type=int, default=_DEFAULT_RESIZE)
+def run(
+    img_dir,
+    metadata_path,
+    labels,
+    sampler_name=_DEFAULT_SAMPLER_NAME,
+    model_name=_DEFAULT_MODEL_NAME,
+    retrain_steps=_DEFAULT_RETRAIN_STEPS,
+    limit=_DEFAULT_LIMIT,
+    resize=_DEFAULT_RESIZE
+    ):
+
     img_dir = Path(img_dir)
 
     def refresh():
 
-        dataset = load_dataset_from_disk(img_dir, metadata_path, labels=labels)
+        with st.spinner(f"Loading dataset from: `{img_dir}`..."):
+            dataset = load_dataset_from_disk(img_dir, metadata_path, labels=labels)
 
         Sampler = SAMPLERS[sampler_name]
         if sampler_name == "active-learning":
-            sampler = Sampler(labels=labels, batch_size=batch_size)
+            sampler = Sampler(labels=labels, retrain_steps=retrain_steps, model_name=model_name)
         else:
             sampler = Sampler()
 
-        st.session_state["annotator"] = Annotator(
-            dataset,
-            sampler,
-            metadata_path,
-            limit
-        )
+        with st.spinner(f"Sorting unlabeled data..."):
+            st.session_state["annotator"] = Annotator(
+                dataset,
+                sampler,
+                metadata_path,
+                limit
+            )
 
     if "annotator" not in st.session_state:
         refresh()
@@ -60,7 +80,7 @@ def run(sampler_name, batch_size, limit, img_dir, metadata_path, labels):
 
     # render history
     if st.session_state["annotator"].labeled_data:
-        history = make_history_divs(st.session_state["annotator"].labeled_data[::-1])
+        history = make_history_divs(st.session_state["annotator"].labeled_data[::-1], load_image_fn=make_tiny)
         with st.sidebar:
             index = click_detector(history)
             if index != "":
@@ -71,16 +91,17 @@ def run(sampler_name, batch_size, limit, img_dir, metadata_path, labels):
 
         with label_tab:
             sample = st.session_state["annotator"].current_sample
-            st.image(Image(decode=True).decode_example(sample["thumbnail"]))
+
+            st.image(load_image(sample["image"]["path"], size=resize))
 
             buttons = []
             types = ["secondary", "primary"]
-            columns = st.columns(len(custom_labels))
+            columns = st.columns(len(labels))
 
-            for i, (label, col) in enumerate(zip(custom_labels, columns)):
+            for i, (label, col) in enumerate(zip(labels, columns)):
 
                 try:
-                    index = custom_labels.index(sample["label"])
+                    index = labels.index(sample["label"])
                 except ValueError:
                     index = None
 
@@ -95,14 +116,19 @@ def run(sampler_name, batch_size, limit, img_dir, metadata_path, labels):
                 ))
 
         with info_tab:
-            st.info(sample.keys())
+            st.info(sample)
 
     except IndexError:
+        import pdb; pdb.set_trace()
         st.balloons()
         st.success("Done!")
 
 if __name__ == "__main__":
     sampler_name = "active-learning"
-    labels = ["dog", "cat", SKIP_LABEL]
-    img_dir = "/home/dani/dev/conny-dev/labeling/data"
-    run(sampler_name, img_dir, labels)
+    labels = ["world", "document", SKIP_LABEL]
+    img_dir = "/home/dani/dev/conny-dev/image-classification/data/output/thumbnails"
+    metadata_path = "/home/dani/dev/conny-dev/image-classification/data/output/metadata.jsonl"
+    model_name = None
+    limit = 1000
+    retrain_steps = 5
+    run(img_dir, metadata_path, labels, sampler_name=sampler_name, model_name=model_name, retrain_steps=retrain_steps, limit=limit)

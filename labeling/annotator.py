@@ -6,7 +6,7 @@ from functools import partial
 
 import pandas as pd
 
-from labeling.samplers import Sampler
+from labeling.samplers import BaseSampler
 from labeling.utils import (
     load_dataset_from_disk,
     is_labeled,
@@ -21,7 +21,7 @@ class Annotator:
     def __init__(
             self,
             dataset: list[typing.Dict[str, list[str]]],
-            sampler: Sampler,
+            sampler: BaseSampler,
             output_path: typing.Union[str, Path],
             limit=None,
         ):
@@ -58,7 +58,9 @@ class Annotator:
         self.labeled_data.append(current_sample)
 
         self.to_jsonl()
-        self.sampler = self.sampler.step(self.trainable_data)
+        self.sampler, needs_sort = self.sampler.step(self.trainable_data)
+        if needs_sort:
+            self.unlabeled_data = self.sort(self.unlabeled_data)
         return self
 
     def sort(self, data: list[typing.Dict[str, list[str]]]):
@@ -77,5 +79,5 @@ class Annotator:
             self.labeled_data
         )
         dataset = pd.DataFrame.from_records(dataset)
-        dataset.to_json(self.output_path, lines=True)
+        dataset.to_json(self.output_path, lines=True, orient="records")
         return self

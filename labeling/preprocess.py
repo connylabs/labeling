@@ -1,10 +1,3 @@
-"""
-find all raw images
-convert pdfs to pictures
-crop all
-run TIMM preprocessing
-save
-"""
 import hashlib
 import pathlib
 from functools import partial

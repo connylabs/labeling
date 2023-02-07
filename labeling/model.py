@@ -37,7 +37,7 @@ def get_model_transforms(feature_extractor):
 
     train_transforms = Compose(
             [
-                RandomResizedCrop(feature_extractor.size),
+                RandomResizedCrop(feature_extractor.size["shortest_edge"]),
                 RandomHorizontalFlip(),
                 ToTensor(),
                 normalize,
@@ -46,8 +46,8 @@ def get_model_transforms(feature_extractor):
 
     val_transforms = Compose(
             [
-                Resize(feature_extractor.size),
-                CenterCrop(feature_extractor.size),
+                Resize(feature_extractor.size["shortest_edge"]),
+                CenterCrop(feature_extractor.size["shortest_edge"]),
                 ToTensor(),
                 normalize,
             ]
@@ -89,14 +89,19 @@ def collate_pred(examples):
     return {"pixel_values": pixel_values}
 
 
+
+MODEL = "microsoft/resnet-18"
+# MODEL = "google/mobilenet_v2_0.35_96"
+
+
 class Model:
     def __init__(
         self,
         labels,
         project_name="custom-labeling-project",
-        model_checkpoint="microsoft/resnet-18",
+        model_checkpoint=MODEL,
         metric_name="f1",
-        num_epochs=3,
+        num_epochs=1,
         batch_size=10,
         test_size=0.2,
         learning_rate=5e-5,
@@ -143,6 +148,7 @@ class Model:
             metric_for_best_model=metric_name,
             push_to_hub=False,
             seed=random_seed,
+            jit_mode_eval=True
         )
 
     def compute_metrics(self, eval_pred):
