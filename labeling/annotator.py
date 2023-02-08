@@ -12,8 +12,7 @@ from labeling.utils import (
     is_labeled,
     is_unlabeled,
     is_not_skipped,
-    prepare_dump,
-    SKIP_LABEL
+    prepare_dump
 )
 
 

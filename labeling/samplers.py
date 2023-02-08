@@ -5,10 +5,11 @@ from copy import copy
 
 import numpy as np
 import scipy
-from datasets import Dataset, DatasetDict, Features, ClassLabel, Image
+from datasets import Dataset, DatasetDict
 
-from labeling.model import Model, get_label_maps, MODEL
-from labeling.utils import SKIP_LABEL, to_dataset, _dataset_to_list
+from labeling.model import Model
+from labeling.utils import to_dataset, _dataset_to_list
+from labeling import defaults
 
 
 class BaseSampler(abc.ABC):
@@ -17,29 +18,29 @@ class BaseSampler(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def step(self, dataset: Dataset) -> tuple(BaseSampler, bool):
+    def step(self, dataset: Dataset) -> tuple[BaseSampler, bool]:
         return self, False
 
 
 class RandomSampler(BaseSampler):
-    def __init__(self, random_seed=42):
+    def __init__(self, random_seed=defaults.RANDOM_SEED):
         self.random_seed = random_seed
         set_random_seed(random_seed)
 
     def __call__(self, dataset):
         return dataset.shuffle(seed=self.random_seed), np.zeros(len(dataset))
 
-    def step(self, dataset: Dataset) -> tuple(BaseSampler, bool):
+    def step(self, dataset: Dataset) -> tuple[BaseSampler, bool]:
         return self, False
 
 
 class ActiveLearningSampler(BaseSampler):
-    def __init__(self, labels, retrain_steps=10, model_name=MODEL):
+    def __init__(self, labels, retrain_steps=defaults.RETRAIN_STEPS, model_name=defaults.MODEL_NAME):
         self.labels = copy(labels)
-        self.labels.remove(SKIP_LABEL)
+        self.labels.remove(defaults.SKIP_LABEL)
         self.retrain_steps = retrain_steps
         self.updates = 0
-        self.model_name = model_name or MODEL
+        self.model_name = model_name or defaults.MODEL_NAME
 
     def __call__(self, dataset):
         return self.sort(dataset)

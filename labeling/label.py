@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import base64
 
 import click
 import streamlit as st
@@ -8,38 +7,32 @@ from st_click_detector import click_detector
 from datasets import load_dataset, Image, Features, ClassLabel
 
 from labeling.annotator import Annotator
-from labeling.utils import SKIP_LABEL, load_dataset_from_disk, load_image
-from labeling.samplers import SAMPLERS
+from labeling.utils import load_dataset_from_disk, load_image
 from labeling.html import make_history_divs
 from labeling.logger import get_logger
+from labeling import defaults
+from labeling.samplers import SAMPLERS
 
-
-_DEFAULT_SAMPLER_NAME = "active-learning"
-_DEFAULT_MODEL_NAME = None
-_DEFAULT_LIMIT = None
-_DEFAULT_RESIZE = None
-_DEFAULT_RETRAIN_STEPS = 50
 
 @click.command()
 @click.option("--img-dir", type=click.Path(), required=True)
 @click.option("--metadata-path", type=click.Path(), required=True)
 @click.option("--labels", multiple=True, type=click.Path(), required=True)
-@click.option("--sampler-name", "--sampler", type=str, default=_DEFAULT_SAMPLER_NAME)
-@click.option("--model-name", "--model", type=str, default=_DEFAULT_MODEL_NAME)
-@click.option("--retrain-steps", "--retrain", type=int, default=_DEFAULT_RETRAIN_STEPS)
-@click.option("--limit", type=int, default=_DEFAULT_LIMIT)
-@click.option("--resize", type=int, default=_DEFAULT_RESIZE)
+@click.option("--sampler-name", "--sampler", type=str, default=defaults.SAMPLER_NAME)
+@click.option("--model-name", "--model", type=str, default=defaults.MODEL_NAME)
+@click.option("--retrain-steps", "--retrain", type=int, default=defaults.RETRAIN_STEPS)
+@click.option("--limit", type=int, default=defaults.LIMIT)
+@click.option("--resize", type=int, default=defaults.RESIZE)
 def run(
     img_dir,
     metadata_path,
     labels,
-    sampler_name=_DEFAULT_SAMPLER_NAME,
-    model_name=_DEFAULT_MODEL_NAME,
-    retrain_steps=_DEFAULT_RETRAIN_STEPS,
-    limit=_DEFAULT_LIMIT,
-    resize=_DEFAULT_RESIZE
+    sampler_name=defaults.SAMPLER_NAME,
+    model_name=defaults.MODEL_NAME,
+    retrain_steps=defaults.RETRAIN_STEPS,
+    limit=defaults.LIMIT,
+    resize=defaults.RESIZE
     ):
-
     logger = get_logger(__name__)
 
     logger.info(f"Using image directory: `{img_dir}`")
@@ -52,7 +45,7 @@ def run(
     logger.info(f"Using resize: `{resize}`")
 
     labels = list(labels)
-    labels.append(SKIP_LABEL)
+    labels.append(defaults.SKIP_LABEL)
     img_dir = Path(img_dir)
 
     def refresh():
@@ -101,7 +94,7 @@ def run(
 
     # render history
     if st.session_state["annotator"].labeled_data:
-        history = make_history_divs(st.session_state["annotator"].labeled_data[::-1])
+        history = make_history_divs(st.session_state["annotator"].labeled_data[-defaults.HISTORY_LEN:][::-1])
         with st.sidebar:
             index = click_detector(history)
             if index != "":
@@ -148,7 +141,7 @@ def run(
                 ))
 
         with info_tab:
-            st.info(sample)
+            st.write(sample)
 
 
 

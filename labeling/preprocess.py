@@ -77,7 +77,9 @@ def _preprocess(path, thumbnail_dir=None, size=500):
 @click.option("--limit", default=None, type=int)
 @click.option("--n-workers", default=8, type=int)
 def run(input_dir, thumbnail_dir, size, limit, n_workers):
-
+    """
+    speed up labeling by reducing image size
+    """
     logger = get_logger(__name__)
 
     thumbnail_dir = pathlib.Path(thumbnail_dir)

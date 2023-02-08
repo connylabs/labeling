@@ -20,7 +20,7 @@ from datasets import (
     Value
 )
 
-SKIP_LABEL = "SKIP"
+from labeling import defaults
 
 
 def set_random_seed(seed=None):
@@ -136,7 +136,7 @@ def is_labeled(sample):
     return sample["label"] is not None
 
 def is_not_skipped(sample):
-    return sample["label"] is not SKIP_LABEL
+    return sample["label"] is not defaults.SKIP_LABEL
 
 
 @contextlib.contextmanager

@@ -22,6 +22,8 @@ from torchvision.transforms import (
 
 from PIL.Image import Image
 
+from labeling import defaults
+
 """
 Borrowing heavily from HF turotial
 https://colab.research.google.com/github/huggingface/notebooks/blob/main/examples/image_classification.ipynb
@@ -89,7 +91,7 @@ def collate_pred(examples):
 
 
 
-MODEL = "microsoft/resnet-18"
+
 # MODEL = "google/mobilenet_v2_0.35_96"
 
 
@@ -98,7 +100,7 @@ class Model:
         self,
         labels,
         project_name="custom-labeling-project",
-        model_checkpoint=MODEL,
+        model_checkpoint=defaults.MODEL_NAME,
         metric_name="f1",
         num_epochs=1,
         batch_size=10,
