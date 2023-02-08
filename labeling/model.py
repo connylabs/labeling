@@ -21,7 +21,6 @@ from torchvision.transforms import (
 )
 
 from PIL.Image import Image
-import click
 
 """
 Borrowing heavily from HF turotial

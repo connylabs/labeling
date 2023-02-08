@@ -2,7 +2,6 @@ import typing
 import random
 from pathlib import Path
 import contextlib
-from functools import cache, lru_cache
 
 import joblib
 from tqdm import tqdm
@@ -112,7 +111,6 @@ def load_image(image_path, size=500, name="thumbnail"):
 
     return image
 
-@cache
 def make_tiny(image_path, size=70, name="tiny"):
     return load_image(image_path, size=size, name=name)
 
