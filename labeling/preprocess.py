@@ -71,8 +71,8 @@ def _preprocess(path, thumbnail_dir=None, size=500):
     return (path, hash, thumbnail_path)
 
 
-@click.option("--input-dir", "--input", default="/home/dani/dev/conny-dev/image-classification/data/input/raw", type=click.Path())
-@click.option("--thumbnail-dir", "--output", default="/home/dani/dev/conny-dev/image-classification/data/input/thumbnails", type=click.Path())
+@click.option("--input-dir", "--input", required=True, type=click.Path())
+@click.option("--thumbnail-dir", "--output", required=True, type=click.Path())
 @click.option("--size", default=500, type=int)
 @click.option("--limit", default=None, type=int)
 @click.option("--n-workers", default=8, type=int)
