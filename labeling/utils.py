@@ -135,7 +135,7 @@ def is_labeled(sample):
 
 
 def is_not_skipped(sample):
-    return sample["label"] is not defaults.SKIP_LABEL
+    return sample["label"] != defaults.SKIP_LABEL
 
 
 @contextlib.contextmanager

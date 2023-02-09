@@ -93,8 +93,11 @@ def run(
         with st.sidebar:
             history_filters = st.multiselect('Filter History', labels, labels)
             history_len = st.slider('History Size', 1, 1000, defaults.HISTORY_LEN)
-
-            history_samples = [(i, s) for i, s in enumerate(st.session_state["annotator"].labeled_data) if s["label"] in history_filters]
+            history_samples = [
+                (i, s)
+                for i, s in enumerate(st.session_state["annotator"].labeled_data)
+                if s["label"] in history_filters
+            ]
 
             if len(history_samples) > 0:
                 idxs, history_samples = zip(*history_samples)
@@ -114,9 +117,11 @@ def run(
     try:
         sample = st.session_state["annotator"].current_sample
         logger.info(f"Current Sample: `{sample}`")
+
     except IndexError:
         st.balloons()
         st.success("Done!")
+
     else:
         with label_tab:
             st.image(load_image(sample["image"]["path"], size=resize))

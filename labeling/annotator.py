@@ -46,6 +46,7 @@ class Annotator:
     def redo(self, index):
         current_sample = self.labeled_data.pop(index)
         self.unlabeled_data.append(current_sample)
+        self.to_jsonl()
         return self
 
     def set_label(self, label):
