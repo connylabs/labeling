@@ -84,20 +84,30 @@ def run(
     st.sidebar.progress(int(100 * (n_labeled / n_total)))
 
     def handle_history_click(index):
-        idx = n_labeled - int(index) - 1
-        st.session_state["annotator"].redo(idx)
-        logger.info(f"Clicked history item with index: `{idx}`")
+        st.session_state["annotator"].redo(int(index))
+        logger.info(f"Redoing labeled sample with index: `{index}`")
         st.experimental_rerun()
 
     # render history
     if st.session_state["annotator"].labeled_data:
-        history = make_history_divs(
-            st.session_state["annotator"].labeled_data[-defaults.HISTORY_LEN :][::-1]
-        )
         with st.sidebar:
-            index = click_detector(history)
-            if index != "":
-                handle_history_click(index)
+            history_filters = st.multiselect('Filter History', labels, labels)
+            history_len = st.slider('History Size', 1, 1000, defaults.HISTORY_LEN)
+
+            history_samples = [(i, s) for i, s in enumerate(st.session_state["annotator"].labeled_data) if s["label"] in history_filters]
+
+            if len(history_samples) > 0:
+                idxs, history_samples = zip(*history_samples)
+
+                history = make_history_divs(history_samples[-history_len:][::-1])
+                idxs = idxs[-history_len:][::-1]
+
+                clicked_index = click_detector(history)
+                if clicked_index != "":
+                    logger.info(f"Clicked history item with ID: `{clicked_index}`")
+                    logger.info(f"Filtered idxs`{idxs}`")
+                    index = idxs[int(clicked_index)]
+                    handle_history_click(index)
 
     label_tab, info_tab = st.tabs(["Label", "Info"])
 

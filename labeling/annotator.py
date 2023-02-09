@@ -55,7 +55,7 @@ class Annotator:
 
         self.to_jsonl()
         self.sampler, needs_sort = self.sampler.step(self.trainable_data)
-        if needs_sort:
+        if needs_sort and (len(self.unlabeled_data) > 0):
             self.unlabeled_data = self.sort(self.unlabeled_data)
         return self
 
