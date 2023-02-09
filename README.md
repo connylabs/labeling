@@ -1,5 +1,5 @@
 # labeling
-![Alt Text](https://github.com/connylabs/labeling/labeling.gif)
+![Alt Text](https://github.com/connylabs/labeling/blob/main/labeling.gif)
 
 
 
