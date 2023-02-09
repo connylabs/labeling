@@ -4,20 +4,17 @@ from pathlib import Path
 import contextlib
 
 import joblib
-from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from PIL import Image
 from PIL.Image import open as open_image
 
 from datasets import (
     Dataset,
     load_dataset,
     Image,
-    concatenate_datasets,
     Features,
     ClassLabel,
-    Value
+    Value,
 )
 
 from labeling import defaults
@@ -29,8 +26,7 @@ def set_random_seed(seed=None):
 
 
 def to_dataset(
-    dataset: list[typing.Dict[str, list[str]]],
-    labels: list[str]
+    dataset: list[typing.Dict[str, list[str]]], labels: list[str]
 ) -> Dataset:
     features = Features(
         {
@@ -48,9 +44,7 @@ def _dataset_to_list(dataset: Dataset) -> list[typing.Dict[str, list[str]]]:
 
 
 def load_dataset_from_disk(
-    dir_name: str,
-    metadata_path: str,
-    labels: list[str]
+    dir_name: str, metadata_path: str, labels: list[str]
 ) -> list[typing.Dict[str, list[str]]]:
 
     # define the features in our dataset
@@ -65,10 +59,7 @@ def load_dataset_from_disk(
 
     # get the image samples
     dataset = load_dataset(
-        "imagefolder",
-        data_dir=dir_name,
-        split="train",
-        features=features
+        "imagefolder", data_dir=dir_name, split="train", features=features
     )
 
     dataset = _dataset_to_list(dataset)
@@ -82,10 +73,14 @@ def load_dataset_from_disk(
         elif ".json" in metadata_path.suffix.lower():
             metadata = pd.read_json(metadata_path, orient="records", lines=True)
         else:
-            raise ValueError(f"Expected metadata to be either `jsonl` or `csv` but found {metadata_path}")
+            raise ValueError(
+                f"Expected metadata to be either `jsonl` or `csv` but found {metadata_path}"  # noqa: E501
+            )
 
         if "label" not in metadata.columns or "file_name" not in metadata.columns:
-            raise ValueError(f"Expected metadata to contain `file_name` and `label` columns but found {metadata.columns}")
+            raise ValueError(
+                f"Expected metadata to contain `file_name` and `label` columns but found {metadata.columns}"  # noqa: E501
+            )
 
         metadata = metadata.dropna().replace(to_replace=np.nan, value=None)
         metadata = metadata.set_index("file_name")["label"]
@@ -111,6 +106,7 @@ def load_image(image_path, size=500, name="thumbnail"):
 
     return image
 
+
 def make_tiny(image_path, size=70, name="tiny"):
     return load_image(image_path, size=size, name=name)
 
@@ -129,11 +125,14 @@ def prepare_dump(sample, dir_name=None, relative=False):
 
     return sample_
 
+
 def is_unlabeled(sample):
     return sample["label"] is None
 
+
 def is_labeled(sample):
     return sample["label"] is not None
+
 
 def is_not_skipped(sample):
     return sample["label"] is not defaults.SKIP_LABEL
@@ -141,9 +140,12 @@ def is_not_skipped(sample):
 
 @contextlib.contextmanager
 def tqdm_joblib(tqdm_object):
-    """Context manager to patch joblib to report into tqdm progress bar given as argument
+    """Context manager to patch joblib to report into tqdm progress bar
+    given as argument
+
     copied from https://stackoverflow.com/a/58936697/5257074
     """
+
     class TqdmBatchCompletionCallback(joblib.parallel.BatchCompletionCallBack):
         def __call__(self, *args, **kwargs):
             tqdm_object.update(n=self.batch_size)

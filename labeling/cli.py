@@ -26,18 +26,11 @@ cli.command("preprocess")(preprocess.run)
 @click.option("--retrain-steps", "--retrain", type=int, default=defaults.RETRAIN_STEPS)
 @click.option("--limit", type=int, default=defaults.LIMIT)
 @click.option("--resize", type=int, default=defaults.RESIZE)
-def label(
-    img_dir,
-    metadata_path,
-    labels,
-    **kwargs):
+def label(img_dir, metadata_path, labels, **kwargs):
     """
     label your data with active learning
     """
-    args = [
-        "--img-dir", img_dir,
-        "--metadata-path", metadata_path
-    ]
+    args = ["--img-dir", img_dir, "--metadata-path", metadata_path]
 
     for label in labels:
         args.append("--labels")
@@ -48,7 +41,9 @@ def label(
             args.extend([f"--{key.replace('_', '-')}", value])
 
     from labeling import label as app
+
     streamlit.web.bootstrap.run(app.__file__, "", args, flag_options={})
+
 
 if __name__ == "__main__":
     cli()

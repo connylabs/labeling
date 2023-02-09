@@ -7,24 +7,18 @@ import PIL.Image
 from joblib import Parallel, delayed
 import click
 import pandas as pd
-import numpy as np
 from tqdm import tqdm
 
 from labeling.logger import get_logger
 from labeling.utils import tqdm_joblib
 
 
-IMG_EXTS = [
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".tiff",
-    ".gif",
-    ".bmp"
-]
+IMG_EXTS = [".jpg", ".jpeg", ".png", ".tiff", ".gif", ".bmp"]
+
 
 def image_path_filter(path):
     return (path.suffix.lower() in IMG_EXTS) and (path.is_file())
+
 
 def _crop_white(image):
     bbox = PIL.ImageOps.invert(image).getbbox()
@@ -32,20 +26,24 @@ def _crop_white(image):
         return image.crop(bbox)
     return image
 
+
 def _crop_black(image):
     bbox = image.getbbox()
     if bbox:
         return image.crop(bbox)
     return image
 
+
 def crop(image):
     return _crop_black(_crop_white(image))
+
 
 def load_image(path, convert="RGB"):
     try:
         return PIL.Image.open(path).convert(convert)
     except PIL.UnidentifiedImageError:
         return None
+
 
 def make_thumbnail(image, size=500):
     if isinstance(size, int):
@@ -61,12 +59,12 @@ def hash_image(image):
 def _preprocess(path, thumbnail_dir=None, size=500):
     image = load_image(path, convert="RGB")
     if image is None:
-        return
+        return None
     image = crop(image)
     image = make_thumbnail(image, size=size)
-    hash = hash_image(image)
+    hash_ = hash_image(image)
 
-    thumbnail_path = thumbnail_dir.joinpath(f"{hash}.png")
+    thumbnail_path = thumbnail_dir.joinpath(f"{hash_}.png")
     image.save(thumbnail_path, format="png")
     return (path, hash, thumbnail_path)
 
@@ -95,21 +93,20 @@ def run(input_dir, thumbnail_dir, size, limit, n_workers):
     logger.info(f"Found {len(paths)} images...")
 
     preprocess = partial(_preprocess, thumbnail_dir=thumbnail_dir, size=size)
-    with tqdm_joblib(tqdm(total=len(paths))) as progress_bar:
-        data = Parallel(n_jobs=n_workers)(delayed(preprocess)(path) for path in paths)
+    with tqdm_joblib(tqdm(total=len(paths))):
+        data = Parallel(n_jobs=n_workers)(
+            delayed(preprocess)(path) for path in paths
+        )  # noqa: E501
 
     data = filter(None, data)
 
     file_names, hashes, thumbnail_paths = zip(*data)
     df = pd.DataFrame.from_dict(
-        {
-            "file_name": file_names,
-            "hash": hashes,
-            "thumbnail_path": thumbnail_paths
-        }
+        {"file_name": file_names, "hash": hashes, "thumbnail_path": thumbnail_paths}
     )
 
-    df.to_csv(thumbnail_dir/"hashes.csv", index=False)
+    df.to_csv(thumbnail_dir / "hashes.csv", index=False)
+
 
 if __name__ == '__main__':
     click.command(run)()

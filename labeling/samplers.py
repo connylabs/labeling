@@ -1,6 +1,5 @@
 from __future__ import annotations
 import abc
-from pathlib import Path
 from copy import copy
 
 import numpy as np
@@ -8,7 +7,7 @@ import scipy
 from datasets import Dataset, DatasetDict
 
 from labeling.model import Model
-from labeling.utils import to_dataset, _dataset_to_list
+from labeling.utils import to_dataset, _dataset_to_list, set_random_seed
 from labeling import defaults
 
 
@@ -35,7 +34,12 @@ class RandomSampler(BaseSampler):
 
 
 class ActiveLearningSampler(BaseSampler):
-    def __init__(self, labels, retrain_steps=defaults.RETRAIN_STEPS, model_name=defaults.MODEL_NAME):
+    def __init__(
+        self,
+        labels,
+        retrain_steps=defaults.RETRAIN_STEPS,
+        model_name=defaults.MODEL_NAME,
+    ):
         self.labels = copy(labels)
         self.labels.remove(defaults.SKIP_LABEL)
         self.retrain_steps = retrain_steps
@@ -51,7 +55,9 @@ class ActiveLearningSampler(BaseSampler):
 
     def sort(self, dataset):
         if not self.is_fitted:
-            raise ValueError("Sampler is not yet fitted. Run `sampler.fit(...)` with your dataset first.")
+            raise ValueError(
+                "Sampler is not yet fitted. Run `sampler.fit(...)` with your dataset first."  # noqa: E501
+            )
 
         if not isinstance(dataset, (Dataset, DatasetDict)):
             dataset = to_dataset(dataset, labels=self.labels)
@@ -59,13 +65,17 @@ class ActiveLearningSampler(BaseSampler):
         scores = self.model.predict_proba(dataset)
         if scores.ndim == 1:
             scores = scores[:, None]
-            scores = np.hstack([scores, 1-scores])
+            scores = np.hstack([scores, 1 - scores])
 
         if scores.ndim > 2:
-            raise ValueError(f"Expected prediction scores to have dim 2, but found {scores}")
+            raise ValueError(
+                f"Expected prediction scores to have dim 2, but found {scores}"
+            )
 
         entropies = scipy.stats.entropy(scores, axis=-1)
-        idxs = np.argsort(entropies, axis=-1) # highest entropies last because we will pop from list end
+        idxs = np.argsort(
+            entropies, axis=-1
+        )  # highest entropies last because we will pop from list end
         return _dataset_to_list(dataset.select(idxs)), entropies[idxs]
 
     def fit(self, dataset):
@@ -85,7 +95,4 @@ class ActiveLearningSampler(BaseSampler):
         return self, False
 
 
-SAMPLERS = {
-    "active-learning": ActiveLearningSampler,
-    "random": RandomSampler
-}
+SAMPLERS = {"active-learning": ActiveLearningSampler, "random": RandomSampler}

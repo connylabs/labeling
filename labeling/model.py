@@ -20,8 +20,6 @@ from torchvision.transforms import (
     ToTensor,
 )
 
-from PIL.Image import Image
-
 from labeling import defaults
 
 """
@@ -32,27 +30,26 @@ https://colab.research.google.com/github/huggingface/notebooks/blob/main/example
 
 def get_model_transforms(feature_extractor):
     normalize = Normalize(
-        mean=feature_extractor.image_mean,
-        std=feature_extractor.image_std
+        mean=feature_extractor.image_mean, std=feature_extractor.image_std
     )
 
     train_transforms = Compose(
-            [
-                RandomResizedCrop(feature_extractor.size["shortest_edge"]),
-                RandomHorizontalFlip(),
-                ToTensor(),
-                normalize,
-            ]
-        )
+        [
+            RandomResizedCrop(feature_extractor.size["shortest_edge"]),
+            RandomHorizontalFlip(),
+            ToTensor(),
+            normalize,
+        ]
+    )
 
     val_transforms = Compose(
-            [
-                Resize(feature_extractor.size["shortest_edge"]),
-                CenterCrop(feature_extractor.size["shortest_edge"]),
-                ToTensor(),
-                normalize,
-            ]
-        )
+        [
+            Resize(feature_extractor.size["shortest_edge"]),
+            CenterCrop(feature_extractor.size["shortest_edge"]),
+            ToTensor(),
+            normalize,
+        ]
+    )
     return {"train": train_transforms, "validation": val_transforms}
 
 
@@ -62,6 +59,7 @@ def make_preprocessor(transforms):
             transforms(image.convert("RGB")) for image in example_batch["image"]
         ]
         return example_batch
+
     return preprocessor
 
 
@@ -90,8 +88,6 @@ def collate_pred(examples):
     return {"pixel_values": pixel_values}
 
 
-
-
 # MODEL = "google/mobilenet_v2_0.35_96"
 
 
@@ -108,7 +104,7 @@ class Model:
         learning_rate=5e-5,
         gradient_accumulation_steps=1,
         random_seed=42,
-        ):
+    ):
 
         self.labels = labels
         self.project_name = project_name
@@ -135,8 +131,8 @@ class Model:
         self.training_args = TrainingArguments(
             f"{model_name}-finetuned-{project_name}",
             remove_unused_columns=False,
-            evaluation_strategy = "epoch",
-            save_strategy = "epoch",
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
             learning_rate=learning_rate,
             per_device_train_batch_size=batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,
@@ -149,18 +145,22 @@ class Model:
             metric_for_best_model=metric_name,
             push_to_hub=False,
             seed=random_seed,
-            jit_mode_eval=True
+            jit_mode_eval=True,
         )
 
     def compute_metrics(self, eval_pred):
         """Computes metrics on a batch of predictions"""
         predictions = np.argmax(eval_pred.predictions, axis=1)
-        return self.metric.compute(predictions=predictions, references=eval_pred.label_ids)
+        return self.metric.compute(
+            predictions=predictions, references=eval_pred.label_ids
+        )
 
     def compute_f1_metric(self, eval_pred):
         """Computes F1 on a batch of predictions"""
         predictions = np.argmax(eval_pred.predictions, axis=1)
-        return self.metric.compute(predictions=predictions, references=eval_pred.label_ids, average="macro")
+        return self.metric.compute(
+            predictions=predictions, references=eval_pred.label_ids, average="macro"
+        )
 
     def _init_model(self):
         model = AutoModelForImageClassification.from_pretrained(
@@ -188,12 +188,12 @@ class Model:
             train_dataset=train_ds,
             eval_dataset=val_ds,
             tokenizer=self.feature_extractor,
-            compute_metrics=self.compute_f1_metric if self.metric_name.lower() == "f1" else self.compute_metrics,
+            compute_metrics=self.compute_f1_metric
+            if self.metric_name.lower() == "f1"
+            else self.compute_metrics,
             data_collator=collate_train_eval,
         )
-
-        train_results = self.trainer.train()
-
+        self.trainer.train()
         return self
 
     def predict_proba(self, dataset):
@@ -221,14 +221,11 @@ class Model:
         out = []
         for probs_ in probs:
             out_ = [
-                {"label":key, "score":prob} for key, prob in zip(self.label2id, probs_)
+                {"label": key, "score": prob}
+                for key, prob in zip(self.label2id, probs_)
             ]
 
-            out_ = sorted(
-                out_,
-                key=lambda pred: pred["score"],
-                reverse=True
-            )
+            out_ = sorted(out_, key=lambda pred: pred["score"], reverse=True)
 
             out.append(out_)
         return out

@@ -2,7 +2,7 @@
 from importlib.metadata import version, PackageNotFoundError
 
 
-__version__ = "0.0.0" # placeholder for dynamic versioning
+__version__ = "0.0.0"  # placeholder for dynamic versioning
 try:
     __version__ = version("labeling")
 except PackageNotFoundError:

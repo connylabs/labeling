@@ -1,10 +1,8 @@
-import os
 from pathlib import Path
 
 import click
 import streamlit as st
 from st_click_detector import click_detector
-from datasets import load_dataset, Image, Features, ClassLabel
 
 from labeling.annotator import Annotator
 from labeling.utils import load_dataset_from_disk, load_image
@@ -31,8 +29,8 @@ def run(
     model_name=defaults.MODEL_NAME,
     retrain_steps=defaults.RETRAIN_STEPS,
     limit=defaults.LIMIT,
-    resize=defaults.RESIZE
-    ):
+    resize=defaults.RESIZE,
+):
     logger = get_logger(__name__)
 
     logger.info(f"Using image directory: `{img_dir}`")
@@ -56,17 +54,16 @@ def run(
 
         Sampler = SAMPLERS[sampler_name]
         if sampler_name == "active-learning":
-            sampler = Sampler(labels=labels, retrain_steps=retrain_steps, model_name=model_name)
+            sampler = Sampler(
+                labels=labels, retrain_steps=retrain_steps, model_name=model_name
+            )
         else:
             sampler = Sampler()
 
         logger.info("Sorting unlabeled data...")
         with st.spinner("Sorting unlabeled data..."):
             st.session_state["annotator"] = Annotator(
-                dataset,
-                sampler,
-                metadata_path,
-                limit
+                dataset, sampler, metadata_path, limit
             )
 
     if "annotator" not in st.session_state:
@@ -94,7 +91,9 @@ def run(
 
     # render history
     if st.session_state["annotator"].labeled_data:
-        history = make_history_divs(st.session_state["annotator"].labeled_data[-defaults.HISTORY_LEN:][::-1])
+        history = make_history_divs(
+            st.session_state["annotator"].labeled_data[-defaults.HISTORY_LEN :][::-1]
+        )
         with st.sidebar:
             index = click_detector(history)
             if index != "":
@@ -127,18 +126,20 @@ def run(
                     index = None
 
                 is_primary = i == index
-                type = types[is_primary]
+                button_type = types[is_primary]
 
                 def handle_label(label):
                     logger.info(f"setting current sample with label : `{label}`")
                     st.session_state["annotator"].set_label(label)
 
-                buttons.append(col.button(
-                    str(label),
-                    on_click=handle_label,
-                    args=(label,),
-                    type=type
-                ))
+                buttons.append(
+                    col.button(
+                        str(label),
+                        on_click=handle_label,
+                        args=(label,),
+                        type=button_type,
+                    )
+                )
 
         with info_tab:
             st.write(sample)

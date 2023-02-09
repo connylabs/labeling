@@ -1,5 +1,3 @@
-import abc
-import random
 import typing
 from pathlib import Path
 from functools import partial
@@ -8,22 +6,21 @@ import pandas as pd
 
 from labeling.samplers import BaseSampler
 from labeling.utils import (
-    load_dataset_from_disk,
     is_labeled,
     is_unlabeled,
     is_not_skipped,
-    prepare_dump
+    prepare_dump,
 )
 
 
 class Annotator:
     def __init__(
-            self,
-            dataset: list[typing.Dict[str, list[str]]],
-            sampler: BaseSampler,
-            output_path: typing.Union[str, Path],
-            limit=None,
-        ):
+        self,
+        dataset: list[typing.Dict[str, list[str]]],
+        sampler: BaseSampler,
+        output_path: typing.Union[str, Path],
+        limit=None,
+    ):
         self.sampler = sampler
         self.output_path = Path(output_path)
         self.limit = limit
@@ -73,10 +70,7 @@ class Annotator:
 
     def to_jsonl(self):
         dir_name = self.output_path.parent
-        dataset = map(
-            partial(prepare_dump, dir_name=dir_name),
-            self.labeled_data
-        )
+        dataset = map(partial(prepare_dump, dir_name=dir_name), self.labeled_data)
         dataset = pd.DataFrame.from_records(dataset)
         dataset.to_json(self.output_path, lines=True, orient="records")
         return self
